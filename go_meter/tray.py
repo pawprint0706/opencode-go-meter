@@ -207,6 +207,9 @@ class GoMeterApp:
                 items.append(
                     pystray.MenuItem(self._usage_line(tr(ko, en), key), None)
                 )
+            balance_line = self._balance_line()
+            if balance_line:
+                items.append(pystray.MenuItem(balance_line, None))
         if self.status:
             items.append(pystray.MenuItem(self.status, None))
         items.append(pystray.Menu.SEPARATOR)
@@ -285,6 +288,14 @@ class GoMeterApp:
         elapsed = time.monotonic() - self._fetched_at if self._fetched_at else 0.0
         return max(0.0, float(v) - elapsed)
 
+    def _balance_line(self) -> Optional[str]:
+        """Zen credit balance line, or None when no balance is available."""
+        bal = getattr(self.usage, "balance", None) if self.usage else None
+        if bal is None:
+            return None
+        label = tr("잔액", "Balance")
+        return f"{label}: ${bal:.2f}"
+
     def _usage_line(self, label: str, key: str) -> str:
         d = getattr(self.usage, key, None) if self.usage else None
         if not d:
@@ -312,7 +323,11 @@ class GoMeterApp:
             label = tr(ko, en)
             pct = self._pct(getattr(self.usage, key, None))
             parts.append(f"{label} {pct:.0f}%" if pct is not None else f"{label} ?")
-        return "Go " + " | ".join(parts)
+        tip = "Go " + " | ".join(parts)
+        bal = getattr(self.usage, "balance", None)
+        if bal is not None:
+            tip += tr(f" | 잔액 ${bal:.2f}", f" | Bal ${bal:.2f}")
+        return tip
 
     def _update_ui(self):
         tray = self.tray_icon

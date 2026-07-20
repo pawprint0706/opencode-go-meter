@@ -14,6 +14,9 @@ CONSOLE_BASE = "https://opencode.ai"
 
 USAGE_KEYS = ("rollingUsage", "weeklyUsage", "monthlyUsage")
 
+# Zen credit balance is stored as dollars * 1e8 (integer) in the console SSR.
+BALANCE_SCALE = 100_000_000
+
 _REDIRECT_CODES = (301, 302, 303, 307, 308)
 
 
@@ -40,6 +43,7 @@ class UsageData:
     monthly: dict
     use_balance: bool = False
     mine: bool = True
+    balance: Optional[float] = None  # Zen credit balance in USD, or None
 
 
 def _session(cookie: str) -> requests.Session:
@@ -239,6 +243,25 @@ def _parse_solidjs_ssr(html: str) -> Optional[dict]:
     return result or None
 
 
+def _parse_zen_balance(html: str) -> Optional[float]:
+    """Extract the Zen credit balance (USD) from the workspace home SSR HTML.
+
+    The console embeds the billing object as seroval-serialized JS, e.g.
+    ``customerID:"cus_...",balance:1613089290``. Balance is dollars * 1e8.
+    Only a number directly following a ``balance:`` key counts, so a stray
+    word elsewhere on the page cannot be mistaken for the value.
+    """
+    for m in re.finditer(rf"\bbalance[\"']?\s*:", html):
+        try:
+            val, _ = _parse_value(html, m.end())
+        except (ParseError, IndexError):
+            continue
+        if isinstance(val, bool) or not isinstance(val, (int, float)):
+            continue
+        return float(val) / BALANCE_SCALE
+    return None
+
+
 def find_nested_key(data: Any, key: str) -> Any:
     """Depth-first search for ``key`` in nested dicts/lists."""
     if isinstance(data, dict):
@@ -317,12 +340,25 @@ def fetch_usage(cookie: str, workspace_id: Optional[str] = None) -> UsageData:
         dump = _dump_html(resp.text)
         raise ParseError(f"no usage data found in HTML (page saved to {dump})")
 
+    # The Zen credit balance lives on the workspace home page (not /go).
+    # It's best-effort: a failure leaves balance as None without failing usage.
+    balance: Optional[float] = None
+    try:
+        home_resp = s.get(
+            f"{CONSOLE_BASE}/workspace/{workspace_id}", timeout=15, allow_redirects=False
+        )
+        if home_resp.status_code == 200:
+            balance = _parse_zen_balance(home_resp.text)
+    except requests.RequestException as e:
+        logger.warning(f"Could not fetch Zen balance: {e}")
+
     return UsageData(
         rolling=data.get("rollingUsage", {}),
         weekly=data.get("weeklyUsage", {}),
         monthly=data.get("monthlyUsage", {}),
         use_balance=data.get("useBalance", False),
         mine=data.get("mine", True),
+        balance=balance,
     )
 
 

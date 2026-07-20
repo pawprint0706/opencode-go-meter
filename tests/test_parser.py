@@ -13,6 +13,7 @@ from go_meter.api import (  # noqa: E402
     ParseError,
     _parse_solidjs_ssr,
     _parse_value,
+    _parse_zen_balance,
     find_nested_key,
 )
 
@@ -100,6 +101,20 @@ def test_garbage_does_not_crash():
         raise AssertionError("expected ParseError")
     except ParseError:
         pass
+
+
+def test_zen_balance():
+    # balance is dollars * 1e8, embedded in the billing SSR object
+    html = (
+        '$R[36]($R[16],$R[274]={customerID:"cus_x",'
+        'balance:1613089290,reload:null,reloadAmount:20,monthlyLimit:30});'
+    )
+    assert _parse_zen_balance(html) == 16.1308929
+    # only a number directly after balance: counts
+    assert _parse_zen_balance('balance:"nope",cost:1') is None
+    # integer and float both supported
+    assert _parse_zen_balance("balance:500000000") == 5.0
+    assert _parse_zen_balance("balance:0") == 0.0
 
 
 if __name__ == "__main__":
