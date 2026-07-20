@@ -1,0 +1,21 @@
+[project]
+name = "opencode-go-meter"
+version = "1.0.0"
+description = "System tray app to monitor OpenCode Go plan usage"
+requires-python = ">=3.10"
+dependencies = [
+    "pystray>=0.19.0",
+    "Pillow>=10.0.0",
+    "browser-cookie3>=0.20.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+opencode-go-meter = "go_meter.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-data]
+go_meter = ["assets/*.svg"]
