@@ -198,18 +198,24 @@ class GoMeterApp:
     def _menu_items(self):
         """Generate menu items; re-evaluated on every update_menu()."""
         items = []
-        # Usage/status lines are informational. We keep them enabled (not
-        # enabled=False) so macOS doesn't dim the text — a disabled NSMenuItem
-        # is greyed out by AppKit and pystray exposes no text-color override.
-        # action=None already maps to a no-op, so clicking them does nothing.
+        # Keep usage lines enabled so they remain readable on macOS and can
+        # open the corresponding console page when clicked.
         if self.is_logged_in:
             for ko, en, key in PERIODS:
                 items.append(
-                    pystray.MenuItem(self._usage_line(tr(ko, en), key), None)
+                    pystray.MenuItem(
+                        self._usage_line(tr(ko, en), key),
+                        self._on_open_usage,
+                    )
                 )
             balance_line = self._balance_line()
             if balance_line:
-                items.append(pystray.MenuItem(balance_line, None))
+                items.append(
+                    pystray.MenuItem(
+                        balance_line,
+                        self._on_open_balance,
+                    )
+                )
         if self.status:
             items.append(pystray.MenuItem(self.status, None))
         items.append(pystray.Menu.SEPARATOR)
@@ -355,6 +361,25 @@ class GoMeterApp:
             logger.warning("Notification failed", exc_info=True)
 
     # --------------------------------------------------------------- actions
+
+    def _on_open_usage(self):
+        self._open_workspace_page("/go")
+
+    def _on_open_balance(self):
+        self._open_workspace_page()
+
+    def _open_workspace_page(self, suffix: str = ""):
+        workspace_id = self.cfg.workspace_id
+        if not workspace_id:
+            logger.warning("Cannot open console page: workspace ID is unavailable")
+            return
+        url = f"{api.CONSOLE_BASE}/workspace/{workspace_id}{suffix}"
+        logger.info("Opening browser: %s", url)
+        try:
+            if not webbrowser.open(url, new=2):
+                logger.warning("The default browser did not accept the URL")
+        except Exception:
+            logger.exception("Could not open browser")
 
     def _make_interval_setter(self, minutes: int):
         def setter():
