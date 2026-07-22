@@ -229,6 +229,7 @@ class GoMeterApp:
                     self._on_open_usage_page,
                 )
             )
+            items.append(pystray.Menu.SEPARATOR)
         items.append(
             pystray.MenuItem(
                 tr("새로고침 주기", "Refresh Interval"),
