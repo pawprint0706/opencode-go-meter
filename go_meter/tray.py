@@ -223,6 +223,12 @@ class GoMeterApp:
             items.append(
                 pystray.MenuItem(tr("지금 새로고침", "Refresh Now"), self._on_refresh)
             )
+            items.append(
+                pystray.MenuItem(
+                    tr("사용량 페이지 열기", "Open Usage Page"),
+                    self._on_open_usage_page,
+                )
+            )
         items.append(
             pystray.MenuItem(
                 tr("새로고침 주기", "Refresh Interval"),
@@ -367,6 +373,9 @@ class GoMeterApp:
 
     def _on_open_balance(self):
         self._open_workspace_page()
+
+    def _on_open_usage_page(self):
+        self._open_workspace_page("/usage")
 
     def _open_workspace_page(self, suffix: str = ""):
         workspace_id = self.cfg.workspace_id
